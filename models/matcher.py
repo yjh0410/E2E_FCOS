@@ -9,12 +9,10 @@ class AlignedOTAMatcher(object):
                  num_classes,
                  soft_center_radius=3.0,
                  topk_candidates=13,
-                 aux_o2o_matching=False
                  ):
         self.num_classes = num_classes
         self.soft_center_radius = soft_center_radius
         self.topk_candidates = topk_candidates
-        self.aux_o2o_matching = aux_o2o_matching
 
     @torch.no_grad()
     def __call__(self, 
@@ -36,10 +34,7 @@ class AlignedOTAMatcher(object):
             return {
                 'assigned_labels': gt_labels.new_full(pred_cls[..., 0].shape, self.num_classes).long(),
                 'assigned_bboxes': gt_bboxes.new_full(pred_box.shape, 0),
-                'assign_metrics': gt_bboxes.new_full(pred_cls[..., 0].shape, 0),
-                'o2o_assigned_labels': gt_labels.new_full(pred_cls[..., 0].shape, self.num_classes).long(),
-                'o2o_assigned_bboxes': gt_bboxes.new_full(pred_box.shape, 0),
-                'o2o_assign_metrics': gt_bboxes.new_full(pred_cls[..., 0].shape, 0)
+                'assign_metrics':  gt_bboxes.new_full(pred_cls[..., 0].shape, 0),
             }
         
         # get inside points: [N, M]
@@ -98,32 +93,6 @@ class AlignedOTAMatcher(object):
             assign_metrics=assign_metrics
             )
         
-        # ----------------------- One-to-one label assignment -----------------------
-        if self.aux_o2o_matching:
-            o2o_matched_pred_ious, o2o_matched_gt_inds, o2o_fg_mask_inboxes = self.top_one_matching(
-                cost_matrix, pair_wise_ious, num_gt)     
-            del pair_wise_cls_loss, cost_matrix, pair_wise_ious, pair_wise_ious_loss
-
-            # ----------------------- Process assigned labels -----------------------
-            o2o_assigned_labels = gt_labels.new_full(pred_cls[..., 0].shape,
-                                                self.num_classes)  # [M,]
-            o2o_assigned_labels[o2o_fg_mask_inboxes] = gt_labels[o2o_matched_gt_inds].squeeze(-1)
-            o2o_assigned_labels = o2o_assigned_labels.long()  # [M,]
-
-            o2o_assigned_bboxes = gt_bboxes.new_full(pred_box.shape, 0)        # [M, 4]
-            o2o_assigned_bboxes[o2o_fg_mask_inboxes] = gt_bboxes[o2o_matched_gt_inds]  # [M, 4]
-
-            o2o_assign_metrics = gt_bboxes.new_full(pred_cls[..., 0].shape, 0) # [M,]
-            o2o_assign_metrics[o2o_fg_mask_inboxes] = o2o_matched_pred_ious            # [M,]
-
-            o2o_assigned_dict = dict(
-                o2o_assigned_labels=o2o_assigned_labels,
-                o2o_assigned_bboxes=o2o_assigned_bboxes,
-                o2o_assign_metrics=o2o_assign_metrics
-                )
-            
-            assigned_dict.update(o2o_assigned_dict)
-
         return assigned_dict
 
     def find_inside_points(self, gt_bboxes, anchors):
@@ -176,30 +145,3 @@ class AlignedOTAMatcher(object):
         matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
 
         return matched_pred_ious, matched_gt_inds, fg_mask_inboxes
-
-    def top_one_matching(self, cost_matrix, pairwise_ious, num_gt):
-        matching_matrix = torch.zeros_like(cost_matrix, dtype=torch.uint8)
-
-        # sorting the batch cost matirx is faster than topk
-        _, sorted_indices = torch.sort(cost_matrix, dim=1)
-        for gt_idx in range(num_gt):
-            top1_ids = sorted_indices[gt_idx, :1]
-            matching_matrix[gt_idx, :][top1_ids] = 1
-
-        del top1_ids
-
-        prior_match_gt_mask = matching_matrix.sum(0) > 1
-        if prior_match_gt_mask.sum() > 0:
-            cost_min, cost_argmin = torch.min(
-                cost_matrix[:, prior_match_gt_mask], dim=0)
-            matching_matrix[:, prior_match_gt_mask] *= 0
-            matching_matrix[cost_argmin, prior_match_gt_mask] = 1
-
-        # get foreground mask inside box and center prior
-        fg_mask_inboxes = matching_matrix.sum(0) > 0
-        matched_pred_ious = (matching_matrix *
-                             pairwise_ious).sum(0)[fg_mask_inboxes]
-        matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
-
-        return matched_pred_ious, matched_gt_inds, fg_mask_inboxes
-                

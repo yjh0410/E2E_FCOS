@@ -100,11 +100,11 @@ class FcosE2E(nn.Module):
 
         # ---------------- Heads ----------------
         if self.training:
+            # One-to-many detection
             outputs = self.detection_head_o2m(pyramid_feats, src_mask)
-            # Stop gradient from the o2o head
+            # Stop gradient from the one-to-one head
             pyramid_feats_detach = [feat.detach() for feat in pyramid_feats]
-            outputs_o2o = self.detection_head_o2o(pyramid_feats_detach, src_mask)
-            outputs["o2o_outputs"] = outputs_o2o
+            outputs["o2o_outputs"] = self.detection_head_o2o(pyramid_feats_detach, src_mask)
         else:
             outputs = self.detection_head_o2o(pyramid_feats, src_mask)
             cls_pred = outputs["pred_cls"]

@@ -209,11 +209,8 @@ class FcosE2E_R18_3x_Config(FcosBaseConfig):
         # --------- Post-process ---------
         self.train_topk = 1000
         self.train_conf_thresh = 0.05
-        self.train_nms_thresh  = 0.6
         self.test_topk = 100
-        self.test_conf_thresh = 0.4
-        self.test_nms_thresh  = 0.45
-        self.nms_class_agnostic = True
+        self.test_conf_thresh = 0.3
 
         # --------- Label Assignment ---------
         self.matcher = 'simota'
