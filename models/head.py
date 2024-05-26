@@ -28,22 +28,31 @@ class Scale(nn.Module):
         return x * self.scale
 
 class FcosRTHead(nn.Module):
-    def __init__(self, cfg, in_dim):
+    def __init__(self,
+                 in_dim        = 256,
+                 cls_head_dim  = 256,
+                 reg_head_dim  = 256,
+                 num_cls_heads = 2,
+                 num_reg_heads = 2,
+                 act_type      = "relu",
+                 norm_type     = "bn",
+                 num_classes   = 80,
+                 stride        = [8, 16, 32],
+                 ):
         super().__init__()
         self.fmp_size = None
         # ------------------ Basic parameters -------------------
-        self.cfg = cfg
-        self.stride       = cfg.out_stride
-        self.num_classes  = cfg.num_classes
-        self.num_cls_head = cfg.num_cls_head
-        self.num_reg_head = cfg.num_reg_head
-        self.act_type     = cfg.head_act
-        self.norm_type    = cfg.head_norm
+        self.stride       = stride
+        self.num_classes  = num_classes
+        self.num_cls_head = num_cls_heads
+        self.num_reg_head = num_reg_heads
+        self.act_type     = act_type
+        self.norm_type    = norm_type
 
         # ------------------ Network parameters -------------------
         ## cls head
         cls_heads = []
-        self.cls_head_dim = cfg.head_dim
+        self.cls_head_dim = cls_head_dim
         for i in range(self.num_cls_head):
             if i == 0:
                 cls_heads.append(
@@ -60,7 +69,7 @@ class FcosRTHead(nn.Module):
         
         ## reg head
         reg_heads = []
-        self.reg_head_dim = cfg.head_dim
+        self.reg_head_dim = reg_head_dim
         for i in range(self.num_reg_head):
             if i == 0:
                 reg_heads.append(
@@ -78,7 +87,7 @@ class FcosRTHead(nn.Module):
         self.reg_heads = nn.Sequential(*reg_heads)
 
         ## Pred layers
-        self.cls_pred = nn.Conv2d(self.cls_head_dim, cfg.num_classes, kernel_size=3, padding=1)
+        self.cls_pred = nn.Conv2d(self.cls_head_dim, num_classes, kernel_size=3, padding=1)
         self.reg_pred = nn.Conv2d(self.reg_head_dim, 4, kernel_size=3, padding=1)
                 
         # init bias

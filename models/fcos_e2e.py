@@ -28,15 +28,16 @@ class FcosE2E(nn.Module):
 
         # ---------------------- Network Parameters ----------------------
         ## Backbone
-        self.backbone = ResNet(cfg)
+        self.backbone = ResNet(cfg.backbone, cfg.bk_norm, cfg.res5_dilation, cfg.freeze_at, cfg.use_pretrained)
         self.pyramid_feats = self.backbone.feat_dims
 
         ## Feature pyramid network
-        self.backbone_fpn = BasicFPN(cfg, self.pyramid_feats)
+        self.backbone_fpn = BasicFPN(self.pyramid_feats, cfg.fpn_dim, cfg.fpn_p6_feat, cfg.fpn_p7_feat, cfg.fpn_p6_from_c5)
         
         ## Heads
-        self.detection_head_o2m = FcosRTHead(cfg, cfg.head_dim)
-        self.detection_head_o2o = FcosRTHead(cfg, cfg.head_dim)
+        self.detection_head_o2m = FcosRTHead(self.backbone_fpn.out_dim, cfg.cls_head_dim, cfg.reg_head_dim, cfg.num_cls_heads,
+                                             cfg.num_reg_heads, cfg.head_act, cfg.head_norm, cfg.num_classes, cfg.out_stride)
+        self.detection_head_o2o = copy.deepcopy(self.detection_head_o2m)
 
     def post_process(self, cls_preds, box_preds):
         """
@@ -98,13 +99,14 @@ class FcosE2E(nn.Module):
         pyramid_feats = self.backbone_fpn(pyramid_feats)
 
         # ---------------- Heads ----------------
-        outputs = self.detection_head_o2o(pyramid_feats, src_mask)
         if self.training:
+            outputs = self.detection_head_o2m(pyramid_feats, src_mask)
             # Stop gradient from the o2o head
             pyramid_feats_detach = [feat.detach() for feat in pyramid_feats]
-            outputs_o2m = self.detection_head_o2m(pyramid_feats_detach, src_mask)
-            outputs["o2m_outputs"] = outputs_o2m
+            outputs_o2o = self.detection_head_o2o(pyramid_feats_detach, src_mask)
+            outputs["o2o_outputs"] = outputs_o2o
         else:
+            outputs = self.detection_head_o2o(pyramid_feats, src_mask)
             cls_pred = outputs["pred_cls"]
             box_pred = outputs["pred_box"]
 

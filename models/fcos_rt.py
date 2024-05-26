@@ -33,14 +33,15 @@ class FcosRT(nn.Module):
 
         # ---------------------- Network Parameters ----------------------
         ## Backbone
-        self.backbone = ResNet(cfg)
+        self.backbone = ResNet(cfg.backbone, cfg.bk_norm, cfg.res5_dilation, cfg.freeze_at, cfg.use_pretrained)
         self.pyramid_feats = self.backbone.feat_dims
 
         ## Feature pyramid network
-        self.fpn = BasicFPN(cfg, self.pyramid_feats)
+        self.fpn = BasicFPN(self.pyramid_feats, cfg.fpn_dim, cfg.fpn_p6_feat, cfg.fpn_p7_feat, cfg.fpn_p6_from_c5)
         
         ## Heads
-        self.head = FcosRTHead(cfg, cfg.head_dim)
+        self.head = FcosRTHead(self.fpn.out_dim, cfg.cls_head_dim, cfg.reg_head_dim, cfg.num_cls_heads,
+                               cfg.num_reg_heads, cfg.head_act, cfg.head_norm, cfg.num_classes, cfg.out_stride)
 
     def post_process(self, cls_preds, box_preds):
         """

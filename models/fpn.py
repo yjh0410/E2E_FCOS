@@ -4,31 +4,38 @@ import torch.nn.functional as F
 
 # ------------------ Basic Feature Pyramid Network ------------------
 class BasicFPN(nn.Module):
-    def __init__(self, cfg, in_dims=[512, 1024, 2048]):
+    def __init__(self,
+                 in_dims=[512, 1024, 2048],
+                 out_dim=256,
+                 fpn_p6_feat=False,
+                 fpn_p7_feat=False,
+                 fpn_p6_from_c5=False
+                 ):
         super().__init__()
         # ------------------ Basic parameters -------------------
-        self.p6_feat = cfg.fpn_p6_feat
-        self.p7_feat = cfg.fpn_p7_feat
-        self.from_c5 = cfg.fpn_p6_from_c5
+        self.out_dim = out_dim
+        self.p6_feat = fpn_p6_feat
+        self.p7_feat = fpn_p7_feat
+        self.from_c5 = fpn_p6_from_c5
 
         # ------------------ Network parameters -------------------
         ## latter layers
         self.input_projs = nn.ModuleList()
         self.smooth_layers = nn.ModuleList()
         for in_dim in in_dims[::-1]:
-            self.input_projs.append(nn.Conv2d(in_dim, cfg.head_dim, kernel_size=1))
-            self.smooth_layers.append(nn.Conv2d(cfg.head_dim, cfg.head_dim, kernel_size=3, padding=1))
+            self.input_projs.append(nn.Conv2d(in_dim, out_dim, kernel_size=1))
+            self.smooth_layers.append(nn.Conv2d(out_dim, out_dim, kernel_size=3, padding=1))
 
         ## P6/P7 layers
         if self.p6_feat:
             if self.from_c5:
-                self.p6_conv = nn.Conv2d(in_dims[-1], cfg.head_dim, kernel_size=3, stride=2, padding=1)
+                self.p6_conv = nn.Conv2d(in_dims[-1], out_dim, kernel_size=3, stride=2, padding=1)
             else: # from p5
-                self.p6_conv = nn.Conv2d(cfg.head_dim, cfg.head_dim, kernel_size=3, stride=2, padding=1)
+                self.p6_conv = nn.Conv2d(out_dim, out_dim, kernel_size=3, stride=2, padding=1)
         if self.p7_feat:
             self.p7_conv = nn.Sequential(
                 nn.ReLU(inplace=True),
-                nn.Conv2d(cfg.head_dim, cfg.head_dim, kernel_size=3, stride=2, padding=1)
+                nn.Conv2d(out_dim, out_dim, kernel_size=3, stride=2, padding=1)
             )
 
         self._init_weight()
