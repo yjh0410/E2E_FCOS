@@ -89,7 +89,7 @@ def build_coco(args, transform=None, is_train=False):
         "val":   (root / "val2017",   root / "annotations" / 'instances_val2017.json'),
     }
 
-    image_set = "val" if is_train else "val"
+    image_set = "train" if is_train else "val"
     img_folder, ann_file = PATHS[image_set]
 
     # build transform
