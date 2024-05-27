@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import os
 import subprocess
-
+import datetime
 import torch
 import torch.distributed as dist
 
@@ -117,6 +117,7 @@ def init_distributed_mode(args):
     print('| distributed init (rank {}): {}'.format(
         args.rank, args.dist_url), flush=True)
     torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
+                                         timeout=datetime.timedelta(7200000),
                                          world_size=args.world_size, rank=args.rank)
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
