@@ -7,26 +7,6 @@ except:
     from  modules import BasicConv
 
 
-class Scale(nn.Module):
-    """
-    Multiply the output regression range by a learnable constant value
-    """
-    def __init__(self, init_value=1.0):
-        """
-        init_value : initial value for the scalar
-        """
-        super().__init__()
-        self.scale = nn.Parameter(
-            torch.tensor(init_value, dtype=torch.float32),
-            requires_grad=True
-        )
-
-    def forward(self, x):
-        """
-        input -> scale * input
-        """
-        return x * self.scale
-
 class FcosRTHead(nn.Module):
     def __init__(self,
                  in_dim        = 256,
@@ -49,7 +29,7 @@ class FcosRTHead(nn.Module):
         self.act_type     = act_type
         self.norm_type    = norm_type
 
-        # ------------------ Network parameters -------------------
+        # ------------------ Model parameters -------------------
         ## cls head
         cls_heads = []
         self.cls_head_dim = cls_head_dim

@@ -1,8 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import torch
 from .criterion import FcosRTCriterion, FcosE2ECriterion
-from .fcos_rt  import FcosRT
-from .fcos_e2e import FcosE2E
+from .fcos import FcosRT, FcosE2E
 
 
 def build_model(args, cfg, is_val=False):
