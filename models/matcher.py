@@ -74,6 +74,7 @@ class AlignedOTAMatcher(object):
         # ----------------------- Dynamic label assignment -----------------------
         matched_pred_ious, matched_gt_inds, fg_mask_inboxes = self.dynamic_k_matching(
             cost_matrix, pair_wise_ious, num_gt)
+        del pair_wise_cls_loss, cost_matrix, pair_wise_ious, pair_wise_ious_loss
 
         # ----------------------- Process assigned labels -----------------------
         assigned_labels = gt_labels.new_full(pred_cls[..., 0].shape,

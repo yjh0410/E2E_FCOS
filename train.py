@@ -171,6 +171,35 @@ def main():
         if args.distributed:
             train_loader.batch_sampler.sampler.set_epoch(epoch)
 
+        # Evaluate
+        if distributed_utils.is_main_process():
+            model_eval = model_without_ddp
+            to_save = False
+            if (epoch % cfg.eval_epoch) == 0 or (epoch == cfg.max_epoch - 1):
+                if evaluator is None:
+                    to_save = True
+                else:
+                    # evaluate
+                    with torch.no_grad():
+                        evaluator.evaluate(model_eval)
+                    # Save model
+                    if evaluator.map >= best_map:
+                        best_map = evaluator.map
+                        to_save = True
+
+                if to_save:
+                    # save model
+                    print('Saving state, epoch:', epoch)
+                    torch.save({'model':        model_eval.state_dict(),
+                                'optimizer':    optimizer.state_dict(),
+                                'lr_scheduler': lr_scheduler.state_dict(),
+                                'mAP':          round(best_map*100, 3),
+                                'epoch':        epoch,
+                                'args':         args}, 
+                                os.path.join(path_to_save, '{}_best.pth'.format(args.model)))
+        if args.distributed:
+            dist.barrier()
+
         # Train one epoch
         train_one_epoch(cfg,
                         model,
@@ -194,7 +223,9 @@ def main():
                 if evaluator is None:
                     to_save = True
                 else:
-                    evaluator.evaluate(model_eval)
+                    # evaluate
+                    with torch.no_grad():
+                        evaluator.evaluate(model_eval)
                     # Save model
                     if evaluator.map >= best_map:
                         best_map = evaluator.map
