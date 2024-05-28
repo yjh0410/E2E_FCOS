@@ -147,7 +147,7 @@ class FcosRT_R18_3x_Config(FcosBaseConfig):
         # --------- Label Assignment ---------
         self.matcher = 'simota'
         self.matcher_hpy = {'soft_center_radius': 3.0,
-                            'topk_candidates': 13}
+                            'topk_candidates': 1}
 
         # --------- Loss weight ---------
         self.focal_loss_alpha = 0.25
