@@ -207,7 +207,7 @@ class FcosE2E_R18_3x_Config(FcosBaseConfig):
         self.head_norm     = 'gn'
 
         # --------- Post-process ---------
-        self.train_topk = 1000
+        self.train_topk = 100
         self.train_conf_thresh = 0.05
         self.test_topk = 100
         self.test_conf_thresh = 0.3

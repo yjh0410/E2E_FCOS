@@ -155,7 +155,7 @@ class FcosE2E(nn.Module):
                                              cfg.num_reg_heads, cfg.head_act, cfg.head_norm, cfg.num_classes, cfg.out_stride)
         self.detection_head_o2o = copy.deepcopy(self.detection_head_o2m)
 
-    def post_process(self, cls_preds, box_preds):
+    def post_process(self, cls_preds, box_preds, use_nms=False):
         """
         Input:
             cls_preds: List(Tensor) [[B, H x W, C], ...]
@@ -205,9 +205,14 @@ class FcosE2E(nn.Module):
         labels = labels.cpu().numpy()
         bboxes = bboxes.cpu().numpy()
 
+        # NMS
+        if use_nms:
+            scores, labels, bboxes = multiclass_nms(
+                scores, labels, bboxes, self.nms_thresh, self.num_classes, self.ca_nms)
+
         return bboxes, scores, labels
 
-    def forward(self, src, src_mask=None):
+    def forward_o2o(self, src, src_mask=None):
         # ---------------- Backbone ----------------
         pyramid_feats = self.backbone(src)
 
@@ -215,29 +220,69 @@ class FcosE2E(nn.Module):
         pyramid_feats = self.backbone_fpn(pyramid_feats)
 
         # ---------------- Heads ----------------
-        if self.training:
+        outputs = self.detection_head_o2o(pyramid_feats, src_mask)
+        cls_pred = outputs["pred_cls"]
+        box_pred = outputs["pred_box"]
+
+        # PostProcess (no NMS)
+        bboxes, scores, labels = self.post_process(cls_pred, box_pred, False)
+
+        # Normalize bbox
+        bboxes[..., 0::2] /= src.shape[-1]
+        bboxes[..., 1::2] /= src.shape[-2]
+        bboxes = bboxes.clip(0., 1.)
+
+        outputs = {
+            'scores': scores,
+            'labels': labels,
+            'bboxes': bboxes
+        }
+
+        return outputs
+
+    def forward_o2m(self, src, src_mask=None):
+        # ---------------- Backbone ----------------
+        pyramid_feats = self.backbone(src)
+
+        # ---------------- Neck ----------------
+        pyramid_feats = self.backbone_fpn(pyramid_feats)
+
+        # ---------------- Heads ----------------
+        outputs = self.detection_head_o2m(pyramid_feats, src_mask)
+        cls_pred = outputs["pred_cls"]
+        box_pred = outputs["pred_box"]
+
+        # PostProcess (no NMS)
+        bboxes, scores, labels = self.post_process(cls_pred, box_pred, True)
+
+        # Normalize bbox
+        bboxes[..., 0::2] /= src.shape[-1]
+        bboxes[..., 1::2] /= src.shape[-2]
+        bboxes = bboxes.clip(0., 1.)
+
+        outputs = {
+            'scores': scores,
+            'labels': labels,
+            'bboxes': bboxes
+        }
+
+        return outputs
+
+    def forward(self, src, src_mask=None):
+        if not self.training:
+            return self.forward_o2o(src, src_mask)
+        else:
+            # ---------------- Backbone ----------------
+            pyramid_feats = self.backbone(src)
+
+            # ---------------- Neck ----------------
+            pyramid_feats = self.backbone_fpn(pyramid_feats)
+
+            # ---------------- Heads ----------------
             # One-to-many detection
             outputs = self.detection_head_o2m(pyramid_feats, src_mask)
             # Stop gradient from the one-to-one head
             pyramid_feats_detach = [feat.detach() for feat in pyramid_feats]
             outputs["o2o_outputs"] = self.detection_head_o2o(pyramid_feats_detach, src_mask)
-        else:
-            outputs = self.detection_head_o2o(pyramid_feats, src_mask)
-            cls_pred = outputs["pred_cls"]
-            box_pred = outputs["pred_box"]
 
-            # PostProcess (No NMS)
-            bboxes, scores, labels = self.post_process(cls_pred, box_pred)
-
-            # Normalize bbox
-            bboxes[..., 0::2] /= src.shape[-1]
-            bboxes[..., 1::2] /= src.shape[-2]
-            bboxes = bboxes.clip(0., 1.)
-
-            outputs = {
-                'scores': scores,
-                'labels': labels,
-                'bboxes': bboxes
-            }
-
-        return outputs 
+            return outputs 
