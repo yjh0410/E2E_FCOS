@@ -208,7 +208,7 @@ class FcosE2E(nn.Module):
         # NMS
         if use_nms:
             scores, labels, bboxes = multiclass_nms(
-                scores, labels, bboxes, self.nms_thresh, self.num_classes, self.ca_nms)
+                scores, labels, bboxes, 0.5, self.num_classes, False)
 
         return bboxes, scores, labels
 
