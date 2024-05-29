@@ -320,6 +320,7 @@ class FcosE2Ev2(nn.Module):
         self.detection_pred_o2m = DetPredLayer(cfg.cls_head_dim, cfg.reg_head_dim, cfg.num_classes, cfg.out_stride)
 
         ## Pred (one-to-one)
+        self.detection_pred_o2o = copy.deepcopy(self.detection_pred_o2m)
         self.enc_cls_feat = nn.Sequential(
             nn.Conv2d(cfg.cls_head_dim, cfg.cls_head_dim, kernel_size=3, padding=1, stride=1),
             nn.ReLU(inplace=True),
@@ -328,7 +329,6 @@ class FcosE2Ev2(nn.Module):
             nn.Conv2d(cfg.reg_head_dim, cfg.reg_head_dim, kernel_size=3, padding=1, stride=1),
             nn.ReLU(inplace=True),
         )
-        self.detection_pred_o2o = copy.deepcopy(self.detection_pred_o2m)
 
     def post_process(self, cls_preds, box_preds, use_nms=False):
         """
@@ -464,16 +464,14 @@ class FcosE2Ev2(nn.Module):
             cls_feats, reg_feats = self.detection_head(pyramid_feats)
 
             # ---------------- Pred ----------------
+            outputs = {}
             ## One-to-many pred
             outputs_o2m = self.detection_pred_o2m(cls_feats, reg_feats, src_mask)
+            outputs["outputs_o2m"] = outputs_o2m
             ## One-to-one pred
             cls_feats_o2o = [self.enc_cls_feat(feat.detach()) for feat in cls_feats]
             reg_feats_o2o = [self.enc_reg_feat(feat.detach()) for feat in reg_feats]
             outputs_o2o = self.detection_pred_o2o(cls_feats_o2o, reg_feats_o2o, src_mask)
-            # Stop gradient from the one-to-one head
-            outputs = {
-                "outputs_o2m": outputs_o2m,
-                "outputs_o2o": outputs_o2o
-            }
+            outputs["outputs_o2o"] = outputs_o2o
 
             return outputs 
