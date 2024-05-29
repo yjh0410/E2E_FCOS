@@ -289,9 +289,9 @@ class FcosE2ECriterion(nn.Module):
                                  'orig_size': ...}, ...]
         """
         self.matcher.topk_candidates = self.cfg.matcher_hpy['topk_candidates']
-        o2m_loss_dict = self.compute_loss(outputs, targets)
+        o2m_loss_dict = self.compute_loss(outputs["outputs_o2m"], targets)
         self.matcher.topk_candidates = 1
-        o2o_loss_dict = self.compute_loss(outputs["o2o_outputs"], targets)
+        o2o_loss_dict = self.compute_loss(outputs["outputs_o2o"], targets)
 
         loss_dict = {}
         loss_dict["loss"] = o2o_loss_dict["loss"] + o2m_loss_dict["loss"]
