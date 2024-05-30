@@ -35,6 +35,7 @@ class AlignedOTAMatcher(object):
                 'assigned_labels': gt_labels.new_full(pred_cls[..., 0].shape, self.num_classes).long(),
                 'assigned_bboxes': gt_bboxes.new_full(pred_box.shape, 0),
                 'assign_metrics':  gt_bboxes.new_full(pred_cls[..., 0].shape, 0),
+                'assigned_pss':    gt_labels.new_full(pred_cls[..., 0].shape, 0).float(),
             }
         
         # get inside points: [N, M]
@@ -74,6 +75,7 @@ class AlignedOTAMatcher(object):
         # ----------------------- Dynamic label assignment -----------------------
         matched_pred_ious, matched_gt_inds, fg_mask_inboxes = self.dynamic_k_matching(
             cost_matrix, pair_wise_ious, num_gt)
+        matched_pss_inds, fg_mask_top1 = self.topk_one_matching(cost_matrix, pair_wise_ious, num_gt)
         del pair_wise_cls_loss, cost_matrix, pair_wise_ious, pair_wise_ious_loss
 
         # ----------------------- Process assigned labels -----------------------
@@ -88,10 +90,15 @@ class AlignedOTAMatcher(object):
         assign_metrics = gt_bboxes.new_full(pred_cls[..., 0].shape, 0) # [M,]
         assign_metrics[fg_mask_inboxes] = matched_pred_ious            # [M,]
 
+        assigned_pss = gt_labels.new_zeros(pred_cls[..., 0].shape)    # [M,]
+        assigned_pss[fg_mask_top1] = torch.ones_like(gt_labels)[matched_pss_inds].squeeze(-1)
+        assigned_pss = assigned_pss.float()
+
         assigned_dict = dict(
-            assigned_labels=assigned_labels,
-            assigned_bboxes=assigned_bboxes,
-            assign_metrics=assign_metrics
+            assigned_labels = assigned_labels,
+            assigned_bboxes = assigned_bboxes,
+            assign_metrics  = assign_metrics,
+            assigned_pss    = assigned_pss,
             )
         
         return assigned_dict
@@ -146,3 +153,32 @@ class AlignedOTAMatcher(object):
         matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
 
         return matched_pred_ious, matched_gt_inds, fg_mask_inboxes
+
+    def topk_one_matching(self, cost_matrix, pairwise_ious, num_gt):
+        matching_matrix = torch.zeros_like(cost_matrix, dtype=torch.uint8)
+        # select candidate topk ious for dynamic-k calculation
+        candidate_topk = min(1, pairwise_ious.size(1))
+        topk_ious, _ = torch.topk(pairwise_ious, candidate_topk, dim=1)
+        # calculate dynamic k for each gt
+        dynamic_ks = torch.clamp(topk_ious.sum(1).int(), min=1)
+
+        # sorting the batch cost matirx is faster than topk
+        _, sorted_indices = torch.sort(cost_matrix, dim=1)
+        for gt_idx in range(num_gt):
+            topk_ids = sorted_indices[gt_idx, :dynamic_ks[gt_idx]]
+            matching_matrix[gt_idx, :][topk_ids] = 1
+
+        del topk_ious, dynamic_ks, topk_ids
+
+        prior_match_gt_mask = matching_matrix.sum(0) > 1
+        if prior_match_gt_mask.sum() > 0:
+            cost_min, cost_argmin = torch.min(
+                cost_matrix[:, prior_match_gt_mask], dim=0)
+            matching_matrix[:, prior_match_gt_mask] *= 0
+            matching_matrix[cost_argmin, prior_match_gt_mask] = 1
+
+        # get foreground mask inside box and center prior
+        fg_mask_inboxes = matching_matrix.sum(0) > 0
+        matched_gt_inds = matching_matrix[:, fg_mask_inboxes].argmax(0)
+
+        return matched_gt_inds, fg_mask_inboxes
