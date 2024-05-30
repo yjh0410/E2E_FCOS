@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import torch
 from .criterion import FcosRTCriterion, FcosE2ECriterion
-from .fcos import FcosRT, FcosE2E, FcosE2Ev2
+from .fcos import FcosRT, FcosE2E
 
 
 def build_model(args, cfg, is_val=False):
@@ -15,7 +15,7 @@ def build_model(args, cfg, is_val=False):
                        )
         criterion = FcosRTCriterion(cfg) if is_val else None
     elif 'fcos_e2e' in args.model:
-        model = FcosE2Ev2(cfg          = cfg,
+        model = FcosE2E(cfg          = cfg,
                         conf_thresh  = cfg.train_conf_thresh if is_val else cfg.test_conf_thresh,
                         topk_results = cfg.train_topk        if is_val else cfg.test_topk,
                         )
