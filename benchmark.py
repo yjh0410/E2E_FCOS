@@ -9,7 +9,7 @@ from datasets import build_dataset, build_transform
 from utils.misc import compute_flops, load_weight
 
 from config import build_config
-from models.detectors import build_model
+from models import build_model
 
 
 parser = argparse.ArgumentParser(description='Benchmark')

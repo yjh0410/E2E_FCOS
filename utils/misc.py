@@ -298,7 +298,7 @@ def compute_flops(model, min_size, max_size, device):
         min_size = min_size[0]
 
     x = torch.randn(1, 3, min_size, max_size).to(device)
-    print('==============================')
+    print('========== Params & FLOPs ============')
     flops, params = profile(model, inputs=(x, ), verbose=False)
     print('GFLOPs : {:.2f}'.format(flops / 1e9))
     print('Params : {:.2f} M'.format(params / 1e6))

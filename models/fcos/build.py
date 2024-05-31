@@ -23,8 +23,5 @@ def build_fcos_rt(args, cfg, is_val=False):
             checkpoint_state_dict = checkpoint.pop("model")
             model.load_state_dict(checkpoint_state_dict)
 
-        return model, criterion
-
-    else:      
-        return model
+    return model, criterion
     

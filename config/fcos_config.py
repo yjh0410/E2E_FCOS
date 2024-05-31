@@ -6,10 +6,7 @@ def build_fcos_config(args):
     
     elif args.model == 'fcos_e2e_r18_3x':
         return FcosE2E_R18_3x_Config()
-    
-    elif args.model == 'fcos_pss_r18_3x':
-        return FcosPSS_R18_3x_Config()
-    
+        
     else:
         raise NotImplementedError("No config for model: {}".format(args.model))
 
@@ -111,7 +108,7 @@ class FcosBaseConfig(object):
         for k, v in config_dict.items():
             print("{} : {}".format(k, v))
 
-# --------------- RT-FCOS & 3x scheduler ---------------
+# --------------- FCOS-RT & 3x scheduler ---------------
 class FcosRT_R18_3x_Config(FcosBaseConfig):
     def __init__(self) -> None:
         super().__init__()
@@ -178,7 +175,7 @@ class FcosRT_R18_3x_Config(FcosBaseConfig):
             {'name': 'RandomResize'},
         ]
 
-# --------------- E2E-FCOS & 3x scheduler ---------------
+# --------------- FCOS-E2E & 3x scheduler ---------------
 class FcosE2E_R18_3x_Config(FcosBaseConfig):
     def __init__(self) -> None:
         super().__init__()
@@ -239,69 +236,3 @@ class FcosE2E_R18_3x_Config(FcosBaseConfig):
             {'name': 'RandomHFlip'},
             {'name': 'RandomResize'},
         ]
-
-# --------------- PSS-FCOS & 3x scheduler ---------------
-class FcosPSS_R18_3x_Config(FcosBaseConfig):
-    def __init__(self) -> None:
-        super().__init__()
-        ## Backbone
-        self.backbone = "resnet18"
-        self.max_stride = 32
-        self.out_stride = [8, 16, 32]
-
-        # --------- Neck ---------
-        self.neck = 'basic_fpn'
-        self.fpn_dim = 256
-        self.fpn_p6_feat = False
-        self.fpn_p7_feat = False
-        self.fpn_p6_from_c5  = False
-
-        # --------- Head ---------
-        self.head = 'fcos_rt_head'
-        self.num_cls_heads = 4
-        self.num_reg_heads = 4
-        self.cls_head_dim  = 256
-        self.reg_head_dim  = 256
-        self.head_act      = 'relu'
-        self.head_norm     = 'gn'
-
-        # --------- Post-process ---------
-        self.train_topk = 100
-        self.train_conf_thresh = 0.005
-        self.test_topk = 100
-        self.test_conf_thresh = 0.4
-
-        # --------- Label Assignment ---------
-        self.matcher = 'simota'
-        self.matcher_hpy = {'soft_center_radius': 3.0,
-                            'topk_candidates': 13}
-
-        # --------- Loss weight ---------
-        self.focal_loss_alpha = 0.25
-        self.focal_loss_gamma = 2.0
-        self.loss_cls_weight  = 1.0
-        self.loss_reg_weight  = 2.0
-        self.loss_pss_weight  = 1.0
-
-        # --------- Train epoch ---------
-        self.max_epoch = 36         # 3x
-        self.lr_epoch  = [24, 33]   # 3x
-
-        # --------- Data process ---------
-        ## input size
-        self.train_min_size = [256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608]   # short edge of image
-        self.train_max_size = 900
-        self.test_min_size  = [512]
-        self.test_max_size  = 736
-        ## Pixel mean & std
-        self.pixel_mean = [0.485, 0.456, 0.406]
-        self.pixel_std  = [0.229, 0.224, 0.225]
-        ## Transforms
-        self.box_format = 'xyxy'
-        self.normalize_coords = False
-        self.detr_style = False
-        self.trans_config = [
-            {'name': 'RandomHFlip'},
-            {'name': 'RandomResize'},
-        ]
-
