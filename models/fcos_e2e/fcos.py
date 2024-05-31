@@ -91,7 +91,7 @@ class FcosE2E(nn.Module):
 
         return bboxes, scores, labels
 
-    def inference_o2o(self, src, src_mask=None):
+    def inference_o2o(self, src):
         # ---------------- Backbone ----------------
         pyramid_feats = self.backbone(src)
 
@@ -99,7 +99,7 @@ class FcosE2E(nn.Module):
         pyramid_feats = self.backbone_fpn(pyramid_feats)
 
         # ---------------- Heads ----------------
-        outputs = self.detection_head_o2o(pyramid_feats, src_mask)
+        outputs = self.detection_head_o2o(pyramid_feats)
         cls_pred = outputs["pred_cls"]
         box_pred = outputs["pred_box"]
 
@@ -121,7 +121,7 @@ class FcosE2E(nn.Module):
 
     def forward(self, src, src_mask=None):
         if not self.training:
-            return self.inference_o2o(src, src_mask)
+            return self.inference_o2o(src)
         else:
             # ---------------- Backbone ----------------
             pyramid_feats = self.backbone(src)
